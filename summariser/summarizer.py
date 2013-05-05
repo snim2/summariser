@@ -18,9 +18,11 @@ import os.path
 import re
 import subprocess
 import sqlite3
+import sys
 import tempfile
 
 from nltk.tokenize.punkt import PunktSentenceTokenizer
+from PyQt4 import QtGui, uic
 from sklearn.feature_extraction.text import TfidfTransformer, CountVectorizer
 
 
@@ -48,7 +50,10 @@ __RE_COUNT_PAGES = re.compile(r'/Type\s*/Page([^s]|$)',
 """Reg exp pattern for counting pages in a PDF file."""
 
 
-def count_pdf_pages(filename):
+__Ui_MainWindow, __base_class = uic.loadUiType('summarizer.ui')
+
+
+def __count_pdf_pages(filename):
     """Count how many pages a PDF file has.
     Active state recipe 496837:
     http://code.activestate.com/recipes/496837-count-pdf-pages/
@@ -107,7 +112,7 @@ def __cleanup():
     return
 
 
-def process_directory(directory):
+def __process_directory(directory):
     """Process all PDF files in a given directory.
 
     For each file, convert each page to a .tiff, OCR the .tiff and
@@ -120,7 +125,7 @@ def process_directory(directory):
     texts = {}
     summaries = {}
     for pdf in pdfs:
-        pages = count_pdf_pages(pdf)
+        pages = __count_pdf_pages(pdf)
         pdf_text = ''
         # Convert each page of each PDF in the directory to a .tiff and OCR.
         for page in range(pages):
@@ -150,7 +155,40 @@ def process_directory(directory):
     return
 
 
+class MainUi(QtGui.QMainWindow, __Ui_MainWindow):
+
+    def __init__(self, parent=None):
+        self.parent = parent
+        QtGui.QMainWindow.__init__(self)
+        self.last_directory = os.path.expanduser('~')
+        self.setupUi(self)
+        self.show()
+
+    def add_files(self):
+        d = QtGui.QFileDialog.getExistingDirectory(self,
+                                                   'Add PDFs from directory',
+                                                   self.last_directory)
+        self.last_directory = str(d)
+        __process_directory(self.last_directory)
+        return
+        
+    def search(self):
+        print self.searchEdit.text()
+        return
+
+    def actionExit(self):
+        __cleanup()
+        sys.exit()
+
+    def about(self):
+        QtGui.QMessageBox.about(self,
+                                'Summeriser',
+                                ('Summeriser helps you organise scientific documents.<br />' +
+                                 'Copyright (c) Sarah Mount, @snim2, 2013.'))
+        return
+
+
 if __name__ == '__main__':
-    import sys
-    process_directory(sys.argv[1])
-    __cleanup()
+    app = QtGui.QApplication(sys.argv)
+    gui = MainUi()
+    sys.exit(app.exec_())
